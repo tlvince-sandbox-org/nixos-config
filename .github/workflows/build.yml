@@ -27,15 +27,6 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - name: Free up disk space
-        uses: easimon/maximize-build-space@fc881a613ad2a34aca9c9624518214ebc21dfc0c # v10
-        with:
-          overprovision-lvm: false
-          remove-android: true
-          remove-codeql: true
-          remove-docker-images: true
-          remove-dotnet: true
-          remove-haskell: true
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - if: matrix.machine.platform == 'aarch64-linux'
