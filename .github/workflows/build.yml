@@ -17,12 +17,10 @@ jobs:
   build:
     env:
       PR_JOB_SUMMARY: pr-job-summary
-    runs-on: ubuntu-24.04
+    runs-on: blacksmith-arm
     strategy:
       matrix:
         machine:
-          - host: framework
-            platform: x86-64-linux
           - host: cm3588
             platform: aarch64-linux
     permissions:
