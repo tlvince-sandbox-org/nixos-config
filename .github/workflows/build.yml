@@ -17,7 +17,7 @@ jobs:
   build:
     env:
       PR_JOB_SUMMARY: pr-job-summary
-    runs-on: blacksmith-arm
+    runs-on: blacksmith-8vcpu-ubuntu-2204-arm
     strategy:
       matrix:
         machine:
@@ -40,9 +40,6 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@e50d5f73bfe71c2dd0aa4218de8f4afa59f8f81d # v16
-        with:
-          extra-conf: |
-            extra-platforms = aarch64-linux
       - name: Set up GitHub Actions cache
         uses: DeterminateSystems/magic-nix-cache-action@87b14cf437d03d37989d87f0fa5ce4f5dc1a330b # v8
       - name: Set up public cache
