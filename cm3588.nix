@@ -10,7 +10,7 @@
     (modulesPath + "/profiles/minimal.nix")
   ];
   boot = {
-    kernelPackages = pkgs.linuxPackages_testing;
+    kernelPackages = pkgs.linuxPackages_latest;
     kernelPatches = [
       {
         name = "crypto: rockchip: add support for rk3588/rk3568";
