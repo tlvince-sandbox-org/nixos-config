@@ -10,14 +10,36 @@
     (modulesPath + "/profiles/minimal.nix")
   ];
   boot = {
-    kernelPackages = pkgs.linuxPackages_latest;
+    kernelPackages = pkgs.linuxPackages_testing;
     kernelPatches = [
       {
         name = "crypto: rockchip: add support for rk3588/rk3568";
         patch = pkgs.fetchpatch {
-          url = "https://raw.githubusercontent.com/armbian/build/eaf8e5ac3740a749cf8fec3b4e1100e10b1e23d2/patch/kernel/archive/rockchip64-6.12/rk35xx-montjoie-crypto-v2-rk35xx.patch";
+          url = "https://raw.githubusercontent.com/armbian/build/ae6a235582a796e97399d6e37b674f99d8e3bce6/patch/kernel/archive/rockchip64-6.12/rk35xx-montjoie-crypto-v2-rk35xx.patch";
           sha256 = "sha256-IxeA9qtlutzsVGV0395EskNZBfg2ytFcSgIq34oIelo=";
         };
+      }
+      {
+        name = "crypto: rockchip: enable";
+        patch = null;
+        extraConfig = ''
+          CRYPTO_DEV_ROCKCHIP y
+          CRYPTO_DEV_ROCKCHIP2 y
+          CRYPTO_DEV_ROCKCHIP2_DEBUG y
+
+          CRYPTO_MANAGER_DISABLE_TESTS n
+          CRYPTO_MANAGER_EXTRA_TESTS y
+          CRYPTO_USER y
+          CRYPTO_USER_API_HASH y
+          CRYPTO_USER_API_SKCIPHER y
+          CRYPTO_USER_API_RNG y
+          CRYPTO_USER_API_AEAD y
+          CRYPTO_STATS y
+          CRYPTO_CTS y
+          CRYPTO_XCBC y
+          CRYPTO_XTS y
+          CRYPTO_HCTR2 y
+        '';
       }
     ];
     loader = {
