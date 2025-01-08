@@ -23,7 +23,7 @@
         name = "crypto: rockchip: add support for rk3588/rk3568 makefile";
         patch = pkgs.fetchpatch {
           url = "file://${./patches/Makefile.patch}";
-          sha256 = lib.fakeSha256;
+          sha256 = "sha256-yIVuiKgFujRtLpkoBPB6vn8gwNQo6j6HhYp3wQYc5cA=";
         };
       }
       {
