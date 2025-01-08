@@ -382,17 +382,17 @@ index 111111111111..222222222222 100644
  	tristate "Support for Xilinx ZynqMP AES hw accelerator"
  	depends on ZYNQMP_FIRMWARE || COMPILE_TEST
 diff --git a/drivers/crypto/rockchip/Makefile b/drivers/crypto/rockchip/Makefile
-index 111111111111..333333333333 100644
+index 111111111111..222222222222 100644
 --- a/drivers/crypto/rockchip/Makefile
 +++ b/drivers/crypto/rockchip/Makefile
 @@ -3,3 +3,8 @@ rk_crypto-objs := rk3288_crypto.o \
-          rk3288_crypto_skcipher.o \
-          rk3288_crypto_ahash.o
+ 		  rk3288_crypto_skcipher.o \
+ 		  rk3288_crypto_ahash.o
 +
 +obj-$(CONFIG_CRYPTO_DEV_ROCKCHIP2) += rk_crypto2.o
 +rk_crypto2-objs := rk2_crypto.o \
-+                 rk2_crypto_skcipher.o \
-+                 rk2_crypto_ahash.o
++		  rk2_crypto_skcipher.o \
++		  rk2_crypto_ahash.o
 diff --git a/drivers/crypto/rockchip/rk2_crypto.c b/drivers/crypto/rockchip/rk2_crypto.c
 new file mode 100644
 index 000000000000..111111111111
