@@ -391,8 +391,8 @@ index 111111111111..333333333333 100644
 +
 +obj-$(CONFIG_CRYPTO_DEV_ROCKCHIP2) += rk_crypto2.o
 +rk_crypto2-objs := rk2_crypto.o \
-+		  rk2_crypto_skcipher.o \
-+		  rk2_crypto_ahash.o
++          rk2_crypto_skcipher.o \
++          rk2_crypto_ahash.o
 diff --git a/drivers/crypto/rockchip/rk2_crypto.c b/drivers/crypto/rockchip/rk2_crypto.c
 new file mode 100644
 index 000000000000..111111111111
