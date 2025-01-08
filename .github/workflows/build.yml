@@ -17,7 +17,7 @@ jobs:
   build:
     env:
       PR_JOB_SUMMARY: pr-job-summary
-    runs-on: blacksmith-8vcpu-ubuntu-2204-arm
+    runs-on: blacksmith-16vcpu-ubuntu-2204-arm
     strategy:
       matrix:
         machine:
