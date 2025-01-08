@@ -16,7 +16,7 @@
         name = "crypto: rockchip: add support for rk3588/rk3568";
         patch = pkgs.fetchpatch {
           url = "file://${./patches/rk35xx-montjoie-crypto-v2-rk35xx.patch}";
-          sha256 = "sha256-BwHL9mz4uEzF1HWbyw/w4QTsfXG89rxXctwHUYtw82Q=";
+          sha256 = lib.fakeSha256;
         };
       }
       {
