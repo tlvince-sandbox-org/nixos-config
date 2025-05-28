@@ -105,6 +105,15 @@
             }: {
               boot = {
                 kernelPackages = pkgs.linuxPackages_latest;
+                kernelPatches = [
+                  {
+                    name = "mfd: cros_ec: Separate charge-control probing from USB-PD";
+                    patch = pkgs.fetchpatch {
+                      url = "https://lore.kernel.org/lkml/20250521-cros-ec-mfd-chctl-probe-v1-1-6ebfe3a6efa7@weissschuh.net/raw";
+                      sha256 = "sha256-8nBcr7mFdUE40yHA1twDVbGKJ8tvAW+YRP23szUIhxk=";
+                    };
+                  }
+                ];
                 loader.grub.device = "/dev/disk/by-id/wwn-0x500001234567890a";
               };
 
