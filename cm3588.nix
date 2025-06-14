@@ -138,13 +138,6 @@
     options = ["bind" "ro" "nosuid" "nodev" "noexec"];
   };
 
-  hardware.deviceTree.overlays = [
-    {
-      name = "cm3588-audio-clock";
-      dtsFile = ./dts/cm3588-audio-clock.dts;
-    }
-  ];
-
   hardware.alsa.enable = true;
   hardware.enableRedistributableFirmware = true;
 
@@ -220,7 +213,10 @@
     ];
     openFirewall = true;
     settings = {
-      AllowGroups = ["wheel"];
+      AllowGroups = [
+        "btrbk"
+        "wheel"
+      ];
       PasswordAuthentication = false;
       PermitRootLogin = "no";
     };
@@ -240,6 +236,17 @@
       name = "en*";
       address = ["192.168.0.2/24"];
       gateway = ["192.168.0.1"];
+    };
+  };
+  # TODO: replace with systemd link when supported in NixOS
+  # https://github.com/systemd/systemd/pull/36302
+  systemd.services.disable-eee = {
+    description = "Disable Energy-Efficient Ethernet to workaround a router firmware bug that breaks 2.5Gbps ethernet";
+    after = ["network.target"];
+    wantedBy = ["multi-user.target"];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.ethtool}/bin/ethtool --set-eee enP4p65s0 eee off";
     };
   };
   time.timeZone = "Europe/London";

@@ -113,6 +113,24 @@
                 fsType = "btrfs";
               };
 
+              nixpkgs.overlays = [
+                (
+                  final: prev: {
+                    # mt7925e 0000:c0:00.0: probe with driver mt7925e failed with error -5
+                    # https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/log/mediatek/mt7925
+                    linux-firmware = prev.linux-firmware.overrideAttrs (
+                      old: {
+                        version = "20250613";
+                        src = pkgs.fetchzip {
+                          url = "https://cdn.kernel.org/pub/linux/kernel/firmware/linux-firmware-20250613.tar.xz";
+                          hash = "sha256-qygwQNl99oeHiCksaPqxxeH+H7hqRjbqN++Hf9X+gzs=";
+                        };
+                      }
+                    );
+                  }
+                )
+              ];
+
               nix.settings = {
                 experimental-features = [
                   "nix-command"

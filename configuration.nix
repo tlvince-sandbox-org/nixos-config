@@ -212,6 +212,24 @@
   nixpkgs.config.allowUnfree = true;
   nixpkgs.hostPlatform = "x86_64-linux";
 
+  nixpkgs.overlays = [
+    (
+      final: prev: {
+        # mt7925e 0000:c0:00.0: probe with driver mt7925e failed with error -5
+        # https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/log/mediatek/mt7925
+        linux-firmware = prev.linux-firmware.overrideAttrs (
+          old: {
+            version = "20250613";
+            src = pkgs.fetchzip {
+              url = "https://cdn.kernel.org/pub/linux/kernel/firmware/linux-firmware-20250613.tar.xz";
+              hash = "sha256-qygwQNl99oeHiCksaPqxxeH+H7hqRjbqN++Hf9X+gzs=";
+            };
+          }
+        );
+      }
+    )
+  ];
+
   programs.firefox = {
     enable = true;
     policies = {
@@ -292,7 +310,7 @@
         volume = {
           "/mnt/btrfs-root" = {
             target = {
-              "ssh://bpim5:6683/mnt/catmull/snapshots/${config.networking.hostName}" = {
+              "ssh://cm3588/mnt/ichbiah/snapshots/framework" = {
                 subvolume = {
                   "/" = {
                     snapshot_name = "root";
@@ -368,7 +386,7 @@
   services.fstrim.enable = true;
   services.fwupd.enable = true;
 
-  # https://github.com/NixOS/nixpkgs/blob/d1f920fa88f38a50cab7ba62d77b7e1d5727222d/nixos/modules/services/x11/desktop-managers/gnome.nix
+  # https://github.com/NixOS/nixpkgs/blob/93da65ede655736068698f9da6470ca9d1484861/nixos/modules/services/desktop-managers/gnome.nix
   services.gnome.core-developer-tools.enable = false;
   services.gnome.core-os-services.enable = true;
   services.gnome.core-shell.enable = true;
@@ -376,10 +394,8 @@
   services.gnome.games.enable = false;
   services.hardware.bolt.enable = true;
   services.printing.enable = false;
-  services.xserver.desktopManager.gnome.enable = true;
-  services.xserver.displayManager.gdm.enable = true;
-  services.xserver.enable = true;
-  services.xserver.excludePackages = [pkgs.xterm];
+  services.desktopManager.gnome.enable = true;
+  services.displayManager.gdm.enable = true;
 
   # services.gnome.core-shell
   services.gnome.gnome-browser-connector.enable = false;
@@ -387,6 +403,7 @@
   services.gnome.gnome-remote-desktop.enable = false;
   services.gnome.gnome-user-share.enable = false;
   services.gnome.rygel.enable = false;
+  services.gnome.sushi.enable = true;
 
   environment.gnome.excludePackages = with pkgs; [
     # services.gnome.core-shell
