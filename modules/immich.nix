@@ -1,11 +1,19 @@
 {
   config,
+  secrets,
+  secretsPath,
   ...
-}: {
+}:
+{
+  age.secrets.immich-smtp.file = "${secretsPath}/immich-smtp.age";
+
   services.immich = {
     enable = true;
-    database.enable = false;
+    database = {
+      enable = false;
+    };
     environment = {
+      IMMICH_ALLOW_SETUP = "false";
       IMMICH_LOG_LEVEL = "warn";
       TZ = config.time.timeZone;
     };
@@ -37,8 +45,20 @@
       newVersionCheck = {
         enabled = false;
       };
+      notifications = {
+        smtp = {
+          enabled = true;
+          from = "Immich Photo Server <noreply@filo.uk>";
+          transport = {
+            host = "smtp.eu.mailgun.org";
+            password._secret = config.age.secrets.immich-smtp.path;
+            port = 587;
+            username = secrets.immichSmtpUsername;
+          };
+        };
+      };
       server = {
-        externalDomain = "https://immich.filo.uk";
+        externalDomain = "https://my.immich.app";
       };
       storageTemplate = {
         enabled = true;
@@ -49,7 +69,7 @@
   };
 
   services.postgresql = {
-    ensureDatabases = ["immich"];
+    ensureDatabases = [ "immich" ];
     ensureUsers = [
       {
         name = "immich";
@@ -57,9 +77,13 @@
         ensureClauses.login = true;
       }
     ];
-    extensions = ps: with ps; [pgvecto-rs];
+    extensions =
+      ps: with ps; [
+        pgvector
+        vectorchord
+      ];
     settings = {
-      shared_preload_libraries = ["vectors.so"];
+      shared_preload_libraries = [ "vchord.so" ];
       search_path = "\"$user\", public, vectors";
     };
   };
@@ -68,7 +92,7 @@
     enable = true;
     # Ephemeral
     appendOnly = false;
-    save = [];
+    save = [ ];
   };
 
   systemd.services.immich-server.serviceConfig.SupplementaryGroups = [
@@ -76,7 +100,7 @@
   ];
 
   services.nginx = {
-    upstreams.immich.servers."127.0.0.1:${toString config.services.immich.port}" = {};
+    upstreams.immich.servers."127.0.0.1:${toString config.services.immich.port}" = { };
 
     virtualHosts."immich.filo.uk" = {
       useACMEHost = "filo.uk";
