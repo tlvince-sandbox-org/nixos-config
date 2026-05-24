@@ -4,35 +4,32 @@
   secretsPath,
   ...
 }:
-let
-  scripts = import ../scripts.nix {
-    inherit config pkgs;
-  };
-
-  dmesgd = pkgs.writeShellScriptBin "dmesgd" ''
-    ${pkgs.systemd}/bin/journalctl --dmesg --follow --lines=0 --output=cat --priority=warning | \
-    while read MESSAGE; do
-      TITLE="${config.networking.hostName} kernel alert" MESSAGE="$MESSAGE" "${scripts.notify}/bin/notify"
-    done
-  '';
-in
 {
   age.secrets.notify.file = "${secretsPath}/notify.age";
 
-  systemd.services.dmesgd = {
-    description = "Monitor kernel diagnostic messages";
+  systemd.services.barberd = {
     wantedBy = [ "multi-user.target" ];
     after = [ "systemd-journald.socket" ];
     serviceConfig = {
-      ExecStart = "${dmesgd}/bin/dmesgd";
+      BindReadOnlyPaths = [ "/home/tlv/dev/barberd:/run/barberd" ];
+      ExecStart = "${pkgs.nodejs-slim}/bin/node --no-warnings=ExperimentalWarning /run/barberd/index.js";
       LoadCredential = "notify:${config.age.secrets.notify.path}";
       Restart = "on-failure";
       RestartSec = 10;
-      SupplementaryGroups = [ "systemd-journal" ];
+      SyslogIdentifier = "barberd";
+      WorkingDirectory = "/run/barberd";
+      RuntimeDirectory = "barberd";
+      RuntimeDirectoryMode = "0755";
+      RuntimeMaxSec = 60;
 
-      # TODO: Use NixOS hardened systemd helper
-      # Issue URL: https://github.com/tlvince/nixos-config/issues/311
-      # labels: systemd
+      # Reduce journal noise
+      IOAccounting = false;
+      IPAccounting = false;
+      LogLevelMax = "warning";
+      MemoryAccounting = false;
+      TasksAccounting = false;
+
+      # Hardening
       CapabilityBoundingSet = [ "" ];
       DynamicUser = true;
       KeyringMode = "private";
@@ -54,6 +51,15 @@ in
       RestrictNamespaces = true;
       RestrictRealtime = true;
       UMask = 077;
+    };
+  };
+
+  systemd.timers.barberd = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "5min";
+      OnCalendar = "00..01,06..23:00/5";
+      RandomizedDelaySec = "1min";
     };
   };
 }

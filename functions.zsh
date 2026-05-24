@@ -50,8 +50,16 @@ curl-headers() {
   curl --dump-header - --output /dev/null --silent --show-error "$@" | "$PAGER"
 }
 
-sync-nixpkgs() {
-  source="${1:-$HOME/dev/nixos-config/flake.lock}"
-  target="${2:-./flake.lock}"
-  jq --slurpfile source "$source" '.nodes.nixpkgs = $source[0].nodes.nixpkgs' "$target" | sponge "$target"
+yq-pretty() {
+  yq --colors --output-format yaml --prettyPrint "$@" | "$PAGER"
+}
+
+# tmux dev layout
+# https://github.com/basecamp/omarchy/blob/11e549a8baa8dbcd5bdd4c70a14161a44e2d5602/default/bash/fns/tmux#L3
+tdl() {
+  tmux rename-window "${PWD:t}"
+  tmux split-window -vd -p 15 -c "$PWD"
+  local ai_pane=$(tmux split-window -hdP -p 30 -c "$PWD" -F '#{pane_id}')
+  tmux send-keys -t "$ai_pane" "${1:-opencode}" C-m
+  tmux send-keys "${EDITOR:-nvim} ." C-m
 }

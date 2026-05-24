@@ -1,8 +1,5 @@
+{ secrets, ... }:
 {
-  config,
-  secrets,
-  ...
-}: {
   services.dnsmasq = {
     enable = true;
     resolveLocalQueries = false;
@@ -13,7 +10,7 @@
       domain-needed = true;
       filter-AAAA = true;
       interface = "enP4p65s0";
-      listen-address = ["192.168.0.2"];
+      listen-address = [ "192.168.0.2" ];
       local-ttl = 2;
       localise-queries = true;
 
@@ -39,9 +36,12 @@
 
       # DHCP
       dhcp-authoritative = true;
+      dhcp-host = secrets.dnsmasqHosts;
       dhcp-option = [
-        "option:dns-server,0.0.0.0"
+        "option:dns-server,0.0.0.0" # IP of dnsmasq host
+        "option:domain-search,filo.uk"
         "option:router,192.168.0.1"
+        "tag:block,option:router" # Remove gateway
       ];
       dhcp-range = "192.168.0.10,192.168.0.251,24h";
 
@@ -53,14 +53,19 @@
   };
 
   networking.nameservers = [
-    "2a07:a8c0::#${secrets.nextdns}.dns.nextdns.io"
-    "2a07:a8c1::#${secrets.nextdns}.dns.nextdns.io"
-    "45.90.28.0#${secrets.nextdns}.dns.nextdns.io"
-    "45.90.30.0#${secrets.nextdns}.dns.nextdns.io"
+    "2a07:a8c0::#${secrets.nextdns.cm3588}.dns.nextdns.io"
+    "2a07:a8c1::#${secrets.nextdns.cm3588}.dns.nextdns.io"
+    "45.90.28.0#${secrets.nextdns.cm3588}.dns.nextdns.io"
+    "45.90.30.0#${secrets.nextdns.cm3588}.dns.nextdns.io"
   ];
 
   services.resolved = {
     enable = true;
-    dnsovertls = "true";
+    settings.Resolve.DNSOverTLS = "true";
+  };
+
+  systemd.services.dnsmasq = {
+    after = [ "systemd-networkd-wait-online.service" ];
+    requires = [ "systemd-networkd-wait-online.service" ];
   };
 }

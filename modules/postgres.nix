@@ -2,13 +2,17 @@
   config,
   secretsPath,
   ...
-}: {
+}:
+{
   age.secrets.rclone-postgresql.file = "${secretsPath}/rclone-postgresql.age";
   age.secrets.restic-postgresql.file = "${secretsPath}/restic-postgresql.age";
 
   services.postgresql = {
     enable = true;
     dataDir = "/mnt/ichbiah/home/postgresql/${config.services.postgresql.package.psqlSchema}";
+    settings = {
+      log_checkpoints = false;
+    };
   };
 
   services.postgresqlBackup = {

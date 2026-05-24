@@ -1,89 +1,16 @@
 {
   config,
-  lib,
   pkgs,
   tmux-colours-onedark,
   ...
-}: {
-  dconf.settings = {
-    "org/gnome/desktop/background" = {
-      color-shading-type = "solid";
-      picture-options = "zoom";
-      picture-uri = "file://${config.xdg.dataHome}/backgrounds/ChromeOSWind-1.png";
-      picture-uri-dark = "file://${config.xdg.dataHome}/backgrounds/ChromeOSWind-2.png";
-      primary-color = "#3465a4";
-      secondary-color = "#000000";
-    };
-    "org/gnome/desktop/input-sources" = {
-      sources = [
-        (lib.hm.gvariant.mkTuple ["xkb" "us+altgr-intl"])
-      ];
-      xkb-options = [
-        "caps:escape"
-      ];
-    };
-    "org/gnome/desktop/interface" = {
-      document-font-name = "Sans 11";
-      enable-animations = false;
-      enable-hot-corners = false;
-      font-antialiasing = "grayscale";
-      font-hinting = "none";
-      font-name = "Sans 11";
-      monospace-font-name = "Monospace 12.5";
-      show-battery-percentage = true;
-    };
-    "org/gnome/desktop/notifications" = {
-      show-in-lock-screen = false;
-    };
-    "org/gnome/desktop/session" = {
-      idle-delay = 120;
-    };
-    "org/gnome/desktop/wm/preferences" = {
-      titlebar-font = "Sans Bold 11";
-    };
-    "org/gnome/mutter" = {
-      experimental-features = [
-        "variable-refresh-rate"
-      ];
-    };
-    "org/gnome/settings-daemon/plugins/power" = {
-      idle-dim = true;
-      power-button-action = "suspend";
-      power-saver-profile-on-low-battery = true;
-      sleep-inactive-ac-type = "nothing";
-      sleep-inactive-battery-timeout = 900;
-      sleep-inactive-battery-type = "suspend";
-    };
-    "org/gnome/shell" = {
-      disable-user-extensions = false;
-      enabled-extensions = [
-        "appindicatorsupport@rgcjonas.gmail.com"
-        "light-style@gnome-shell-extensions.gcampax.github.com"
-        "nightthemeswitcher@romainvigier.fr"
-      ];
-      favorite-apps = [
-        "firefox.desktop"
-        "foot.desktop"
-        "org.gnome.Nautilus.desktop"
-        "org.gnome.Evolution.desktop"
-        "org.gnome.Calendar.desktop"
-      ];
-    };
-  };
-
+}:
+{
   home = {
     homeDirectory = "/home/tlv";
     file = {
       ".digrc".text = "+noall +answer";
-      "${config.xdg.dataHome}/backgrounds/ChromeOSWind-1.png".source = pkgs.fetchurl {
-        url = "https://raw.githubusercontent.com/saint-13/Linux_Dynamic_Wallpapers/refs/heads/main/Dynamic_Wallpapers/ChromeOSWind/ChromeOSWind-1.png";
-        hash = "sha256-lT6dvLymLtlJ+xFFyX7k1aV0lTBceZXRJSeCQvJqA3o=";
-      };
-      "${config.xdg.dataHome}/backgrounds/ChromeOSWind-2.png".source = pkgs.fetchurl {
-        url = "https://raw.githubusercontent.com/saint-13/Linux_Dynamic_Wallpapers/refs/heads/main/Dynamic_Wallpapers/ChromeOSWind/ChromeOSWind-2.png";
-        hash = "sha256-jB0T07ro1QtJ6fYcu/IKHZB8ESNbqwpVHtA9nr8alUg=";
-      };
     };
+    preferXdgDirectories = true;
     sessionVariables = {
       # Zsh's "< file" built-in pager
       READNULLCMD = "$PAGER";
@@ -117,6 +44,7 @@
       DO_NOT_TRACK = 1; # https://consoledonottrack.com
       EXPO_NO_TELEMETRY = 1; # Expo
       GATSBY_TELEMETRY_DISABLED = 1; # Gatsby
+      GH_TELEMETRY = "false"; # GitHub CLI
       GOTELEMETRY = "false"; # Go
       HASURA_GRAPHQL_ENABLE_TELEMETRY = "false"; # Hasura
       HOMEBREW_NO_ANALYTICS = 1;
@@ -139,25 +67,56 @@
 
       # https://typicode.github.io/husky/get-started.html#disabling-hooks
       HUSKY = 0;
+
+      # XDG
+      CARGO_HOME = "$XDG_DATA_HOME/cargo";
+      GOCACHE = "$XDG_CACHE_HOME/go/build";
+      GOMODCACHE = "$XDG_CACHE_HOME/go/mod";
+      NODE_REPL_HISTORY = "$XDG_DATA_HOME/node_repl_history";
+      NPM_CONFIG_USERCONFIG = "$XDG_CONFIG_HOME/npm/npmrc";
+      RUSTUP_HOME = "$XDG_DATA_HOME/rustup";
     };
     stateVersion = "23.05";
     username = "tlv";
   };
 
-  # Workaround for "unable to download 'https://git.sr.ht/~rycee"
-  # https://github.com/nix-community/home-manager/issues/4879
   manual = {
     html.enable = false;
     manpages.enable = false;
     json.enable = false;
   };
 
-  # TODO: remove when https://github.com/NixOS/nix/issues/8508 is resolved
+  # TODO: GC does not clean up user profiles when ran as root
+  # Remove when https://github.com/NixOS/nix/issues/8508 is resolved
+  # labels: home-manager
+  # Issue URL: https://github.com/tlvince/nixos-config/issues/302
   nix.gc = {
     automatic = true;
-    frequency = "weekly";
+    dates = "weekly";
     options = "--delete-older-than 30d";
     randomizedDelaySec = "1 hour";
+  };
+
+  programs.bun = {
+    enable = true;
+    enableGitIntegration = false;
+    package = null;
+    settings = {
+      install = {
+        exact = true;
+        minimumReleaseAge = 604800; # 7 days
+        minimumReleaseAgeExcludes = [
+          "@types/bun"
+          "typescript"
+        ];
+      };
+      telemetry = false;
+    };
+  };
+
+  programs.diff-so-fancy = {
+    enable = true;
+    enableGitIntegration = true;
   };
 
   programs.foot = {
@@ -165,13 +124,20 @@
     settings = {
       main = {
         font = "monospace:size=12.5";
-        include = "${pkgs.foot.themes}/share/foot/themes/onedark";
+        include = [
+          "${pkgs.foot.themes}/share/foot/themes/onedark"
+          "${pkgs.foot.themes}/share/foot/themes/solarized-light"
+        ];
+        initial-color-theme = "dark";
         initial-window-mode = "fullscreen";
       };
       cursor = {
         style = "beam";
         blink = "yes";
         beam-thickness = 1;
+      };
+      key-bindings = {
+        color-theme-toggle = "F12";
       };
       scrollback = {
         lines = 10000;
@@ -193,49 +159,45 @@
 
   programs.git = {
     enable = true;
-    aliases = {
-      br = "branch";
-      brrm = "!git branch | grep -vE '^\\*|main|master' | xargs -n 1 git branch -D";
-      c = "commit";
-      cfa = "commit --all --amend --no-edit";
-      ci = "commit --all";
-      cia = "commit --all --message";
-      cl = "clone --recursive";
-      co = "checkout";
-      cob = "checkout -b";
-      com = "checkout master";
-      cp = "cherry-pick";
-      cpc = "cherry-pick --continue";
-      d = "diff";
-      dfs = "diff --stat";
-      g = "grep --ignore-case";
-      l = "log -p --follow";
-      lh = "log --follow --pretty=format:'%H'";
-      lhr = "log --reverse --pretty=format:'%H'";
-      lm = "log --follow --pretty=format:'%s'";
-      lo = "log --graph --decorate --pretty=oneline --abbrev-commit";
-      lpp = "log --graph --all --pretty=format:'%h by %an (%cr):%d %s' --abbrev-commit --decorate --date-order";
-      ls = "ls-files";
-      mt = "mergetool";
-      pa = "push --all all";
-      pd = "pull --rebase --tags";
-      pu = "push --tags";
-      rbc = "rebase --continue";
-      s = "status --short --ignore-submodules=dirty";
-      subpd = "submodule foreach --recursive git pull origin master";
-      subpu = "submodule foreach --recursive git push origin master";
-      # Overrides
-      ctags = "!.git/hooks/ctags";
-      # Show verbose output about tags, branches or remotes";
-      branches = "branch -a";
-      remotes = "remote -v";
-      tags = "tag -l";
-    };
-    attributes = [
-      "* text=auto"
-    ];
-    diff-so-fancy.enable = true;
-    extraConfig = {
+    settings = {
+      alias = {
+        br = "branch";
+        brrm = "!git branch | grep -vE '^\\*|main|master' | xargs -n 1 git branch -D";
+        c = "commit";
+        cfa = "commit --all --amend --no-edit";
+        ci = "commit --all";
+        cia = "commit --all --message";
+        cl = "clone --recursive";
+        co = "checkout";
+        cob = "checkout -b";
+        com = "checkout master";
+        cp = "cherry-pick";
+        cpc = "cherry-pick --continue";
+        d = "diff";
+        dfs = "diff --stat";
+        g = "grep --ignore-case";
+        l = "log --patch";
+        lh = "log --follow --pretty=format:'%H'";
+        lhr = "log --reverse --pretty=format:'%H'";
+        lm = "log --follow --pretty=format:'%s'";
+        lo = "log --graph --decorate --pretty=oneline --abbrev-commit";
+        lpp = "log --graph --all --pretty=format:'%h by %an (%cr):%d %s' --abbrev-commit --decorate --date-order";
+        ls = "ls-files";
+        mt = "mergetool";
+        pa = "push --all all";
+        pd = "pull --rebase --tags";
+        pu = "push --tags";
+        rbc = "rebase --continue";
+        s = "status --short --ignore-submodules=dirty";
+        subpd = "submodule foreach --recursive git pull origin master";
+        subpu = "submodule foreach --recursive git push origin master";
+        # Overrides
+        ctags = "!.git/hooks/ctags";
+        # Show verbose output about tags, branches or remotes";
+        branches = "branch -a";
+        remotes = "remote -v";
+        tags = "tag -l";
+      };
       apply = {
         whitespace = "fix";
       };
@@ -278,16 +240,22 @@
       push = {
         default = "simple";
       };
+      user = {
+        email = "git@tlvince.com";
+        name = "Tom Vincent";
+      };
       web = {
         browser = "gio open";
       };
     };
+    attributes = [
+      "* text=auto"
+    ];
     signing = {
+      format = "openpgp";
       key = "AB184CDBE6AEACDE";
       signByDefault = true;
     };
-    userEmail = "git@tlvince.com";
-    userName = "Tom Vincent";
   };
 
   programs.gpg = {
@@ -308,7 +276,6 @@
     defaultCacheTtlSsh = 28800; # 8 hours
     maxCacheTtl = 57600; # 16 hours
     maxCacheTtlSsh = 57600; # 16 hours
-    pinentry.package = pkgs.pinentry-gnome3;
   };
 
   programs.home-manager.enable = true;
@@ -332,14 +299,6 @@
       vo = "dmabuf-wayland";
       ytdl-format = "(bestvideo[vcodec^=av01][height<=?2160]/bestvideo[height<=?2160])+bestaudio/best";
     };
-  };
-
-  programs.neovim = {
-    enable = true;
-    defaultEditor = true;
-    viAlias = true;
-    vimAlias = true;
-    vimdiffAlias = true;
   };
 
   programs.readline = {
@@ -435,7 +394,7 @@
       bind-key | resize-pane -Z
 
       # Colours
-      set-option -ga terminal-overrides ",tmux-256color:Tc,xterm-256color:Tc"
+      set-option -as terminal-features ",*:RGB"
       ${pkgs.lib.fileContents "${tmux-colours-onedark}/tmux-colours-onedark.conf"}
     '';
     historyLimit = 10000;
@@ -444,7 +403,7 @@
     prefix = "C-a";
     secureSocket = true;
     sensibleOnTop = false;
-    terminal = "screen-256color";
+    terminal = "tmux-256color";
   };
 
   programs.zsh = {
@@ -452,123 +411,126 @@
 
     autocd = true;
     autosuggestion.enable = true;
+    dotDir = "${config.xdg.configHome}/zsh";
     enableCompletion = true;
-    history.ignoreAllDups = true;
+    history = {
+      ignoreAllDups = true;
+      path = "${config.xdg.stateHome}/zsh_history";
+    };
 
-    initContent =
-      ''
-        # Prompt
-        autoload -U promptinit; promptinit
-        prompt pure
+    initContent = ''
+      # Prompt
+      autoload -U promptinit; promptinit
+      prompt pure
 
-        # Autojump
-        source ${pkgs.zsh-z}/share/zsh-z/zsh-z.plugin.zsh
+      # Autojump
+      source ${pkgs.zsh-z}/share/zsh-z/zsh-z.plugin.zsh
 
-        # Escape URLs when pasting
-        autoload -Uz bracketed-paste-magic url-quote-magic
-        zle -N bracketed-paste bracketed-paste-magic
+      # Escape URLs when pasting
+      autoload -Uz bracketed-paste-magic url-quote-magic
+      zle -N bracketed-paste bracketed-paste-magic
+      zle -N self-insert url-quote-magic
+
+      # History search matching the current line up to the current cursor position
+      autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
+      zle -N up-line-or-beginning-search
+      zle -N down-line-or-beginning-search
+      bindkey "$terminfo[kcuu1]" up-line-or-beginning-search
+      bindkey "$terminfo[kcud1]" down-line-or-beginning-search
+
+      # Fix pasting with autosuggest
+      # https://github.com/zsh-users/zsh-autosuggestions/issues/238#issuecomment-389324292
+      pasteinit() {
+        OLD_SELF_INSERT=''${''${(s.:.)widgets[self-insert]}[2,3]}
         zle -N self-insert url-quote-magic
+      }
+      pastefinish() {
+        zle -N self-insert $OLD_SELF_INSERT
+      }
+      zstyle :bracketed-paste-magic paste-init pasteinit
+      zstyle :bracketed-paste-magic paste-finish pastefinish
 
-        # History search matching the current line up to the current cursor position
-        autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
-        zle -N up-line-or-beginning-search
-        zle -N down-line-or-beginning-search
-        bindkey "$terminfo[kcuu1]" up-line-or-beginning-search
-        bindkey "$terminfo[kcud1]" down-line-or-beginning-search
+      # Write history immediately, rather than on shell exit
+      setopt INC_APPEND_HISTORY
 
-        # Fix pasting with autosuggest
-        # https://github.com/zsh-users/zsh-autosuggestions/issues/238#issuecomment-389324292
-        pasteinit() {
-          OLD_SELF_INSERT=''${''${(s.:.)widgets[self-insert]}[2,3]}
-          zle -N self-insert url-quote-magic
-        }
-        pastefinish() {
-          zle -N self-insert $OLD_SELF_INSERT
-        }
-        zstyle :bracketed-paste-magic paste-init pasteinit
-        zstyle :bracketed-paste-magic paste-finish pastefinish
+      # Spell check
+      setopt CORRECT
 
-        # Write history immediately, rather than on shell exit
-        setopt INC_APPEND_HISTORY
+      # Glob
+      setopt EXTENDED_GLOB
+      setopt GLOB_COMPLETE
+      setopt COMPLETE_IN_WORD
+      setopt NUMERIC_GLOB_SORT
 
-        # Spell check
-        setopt CORRECT
+      # Sanity checks
+      setopt NO_CLOBBER
+      setopt RM_STAR_WAIT
 
-        # Glob
-        setopt EXTENDED_GLOB
-        setopt GLOB_COMPLETE
-        setopt COMPLETE_IN_WORD
-        setopt NUMERIC_GLOB_SORT
+      # Array expansion
+      setopt RC_EXPAND_PARAM
 
-        # Sanity checks
-        setopt NO_CLOBBER
-        setopt RM_STAR_WAIT
+      # <Ctrl + e>: Invoke a visual editor on the command line
+      autoload -Uz edit-command-line
+      zle -N edit-command-line
+      bindkey "^e" edit-command-line
 
-        # Array expansion
-        setopt RC_EXPAND_PARAM
+      # <Alt + .>: Insert the last argument of the previous command
+      bindkey "^[." insert-last-word
 
-        # <Ctrl + e>: Invoke a visual editor on the command line
-        autoload -Uz edit-command-line
-        zle -N edit-command-line
-        bindkey "^e" edit-command-line
+      # Shift-Tab
+      bindkey "^[[Z" reverse-menu-complete
 
-        # <Alt + .>: Insert the last argument of the previous command
-        bindkey "^[." insert-last-word
+      # Tab Completion options <http://stackoverflow.com/a/171564>
+      zstyle ':completion::complete:*' use-cache on
+      zstyle ':completion::complete:*' cache-path "$XDG_CACHE_HOME/zcompcache"
 
-        # Shift-Tab
-        bindkey "^[[Z" reverse-menu-complete
+      # case insensitive completion
+      zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
 
-        # Tab Completion options <http://stackoverflow.com/a/171564>
-        zstyle ':completion::complete:*' use-cache on
-        zstyle ':completion::complete:*' cache-path "$XDG_CACHE_HOME/zcompcache"
+      zstyle ':completion:*' verbose yes
+      zstyle ':completion:*:descriptions' format '%B%d%b'
+      zstyle ':completion:*:messages' format '%d'
+      zstyle ':completion:*:warnings' format 'No matches for: %d'
+      zstyle ':completion:*' group-name \'\'
+      zstyle ':completion:*' completer _expand _complete _approximate _ignored
 
-        # case insensitive completion
-        zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
+      # generate descriptions with magic.
+      zstyle ':completion:*' auto-description 'specify: %d'
 
-        zstyle ':completion:*' verbose yes
-        zstyle ':completion:*:descriptions' format '%B%d%b'
-        zstyle ':completion:*:messages' format '%d'
-        zstyle ':completion:*:warnings' format 'No matches for: %d'
-        zstyle ':completion:*' group-name \'\'
-        zstyle ':completion:*' completer _expand _complete _approximate _ignored
+      # Don't prompt for a huge list, page it!
+      zstyle ':completion:*:default' list-prompt '%S%M matches%s'
 
-        # generate descriptions with magic.
-        zstyle ':completion:*' auto-description 'specify: %d'
+      # Don't prompt for a huge list, menu it!
+      zstyle ':completion:*:default' menu 'select=0'
 
-        # Don't prompt for a huge list, page it!
-        zstyle ':completion:*:default' list-prompt '%S%M matches%s'
+      # Have the newer files last so I see them first
+      zstyle ':completion:*' file-sort modification reverse
 
-        # Don't prompt for a huge list, menu it!
-        zstyle ':completion:*:default' menu 'select=0'
+      # color code completion!!!!  Wohoo!
+      zstyle ':completion:*' list-colors "=(#b) #([0-9]#)*=36=31"
 
-        # Have the newer files last so I see them first
-        zstyle ':completion:*' file-sort modification reverse
+      # Separate man page sections.  Neat.
+      zstyle ':completion:*:manuals' separate-sections true
 
-        # color code completion!!!!  Wohoo!
-        zstyle ':completion:*' list-colors "=(#b) #([0-9]#)*=36=31"
+      # complete with a menu for xwindow ids
+      zstyle ':completion:*:windows' menu on=0
+      zstyle ':completion:*:expand:*' tag-order all-expansions
 
-        # Separate man page sections.  Neat.
-        zstyle ':completion:*:manuals' separate-sections true
+      # more errors allowed for large words and fewer for small words
+      zstyle ':completion:*:approximate:*' max-errors 'reply=(  $((  ($#PREFIX+$#SUFFIX)/3  ))  )'
 
-        # complete with a menu for xwindow ids
-        zstyle ':completion:*:windows' menu on=0
-        zstyle ':completion:*:expand:*' tag-order all-expansions
+      # Errors format
+      zstyle ':completion:*:corrections' format '%B%d (errors %e)%b'
 
-        # more errors allowed for large words and fewer for small words
-        zstyle ':completion:*:approximate:*' max-errors 'reply=(  $((  ($#PREFIX+$#SUFFIX)/3  ))  )'
+      # Don't complete stuff already on the line
+      zstyle ':completion::*:(rm|vi):*' ignore-line true
 
-        # Errors format
-        zstyle ':completion:*:corrections' format '%B%d (errors %e)%b'
+      # Don't complete directory we are already in (../here)
+      zstyle ':completion:*' ignore-parents parent pwd
 
-        # Don't complete stuff already on the line
-        zstyle ':completion::*:(rm|vi):*' ignore-line true
-
-        # Don't complete directory we are already in (../here)
-        zstyle ':completion:*' ignore-parents parent pwd
-
-        zstyle ':completion::approximate*:*' prefix-needed false
-      ''
-      + builtins.readFile ./functions.zsh;
+      zstyle ':completion::approximate*:*' prefix-needed false
+    ''
+    + builtins.readFile ./functions.zsh;
 
     shellAliases = {
       # Overrides
@@ -580,8 +542,6 @@
       htop = "htop -u $USER";
       ls = "ls --color=auto --human-readable --no-group";
       mysql = "mysql --pager=\"less -nSFX\"";
-      vi = "nvim";
-      visudo = "sudo EDITOR=nvim visudo";
 
       # Shortcuts
       ".." = "cd ..";
@@ -603,6 +563,7 @@
       rd = "rmdir";
       serve = "python3 -m http.server --bind 127.0.0.1";
       sudu = "sudo -iu";
+      sync-nixpkgs = "nix flake update --inputs-from $HOME/dev/nixos-config";
       ts = "date --utc +'%Y-%m-%dT%H:%M:%S.%3NZ'";
       th = "dict -d moby-thesaurus";
       webcam = "mpv --demuxer-lavf-format=video4linux2 --demuxer-lavf-o=video_size=1920x1080,input_format=mjpeg av://v4l2:/dev/video0 --profile=low-latency --untimed --vf=hflip";
@@ -623,6 +584,7 @@
       p = "wl-paste";
       s = "spell";
       v = "nvim";
+      y = "yq-pretty";
     };
 
     syntaxHighlighting.enable = true;
@@ -667,14 +629,9 @@
       ]
     '';
 
-    configFile."systemd/user/org.gnome.Shell@wayland.service.d/override.conf".text = ''
-      [Service]
-      ExecStart=
-      ExecStart=${pkgs.gnome-shell}/bin/gnome-shell --no-x11
-    '';
-
     userDirs = {
       enable = true;
+      setSessionVariables = true;
 
       desktop = "${config.home.homeDirectory}/desktop";
       documents = "${config.home.homeDirectory}/documents";

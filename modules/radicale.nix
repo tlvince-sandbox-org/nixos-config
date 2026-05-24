@@ -3,10 +3,11 @@
   pkgs,
   secretsPath,
   ...
-}: {
+}:
+{
   age.secrets.radicale = {
     file = "${secretsPath}/radicale.age";
-    mode = "770";
+    mode = "640";
     owner = "nginx";
     group = "nginx";
   };
@@ -38,7 +39,9 @@
         level = "warning";
       };
       server = {
-        hosts = ["127.0.0.1:5232"];
+        hosts = [ "127.0.0.1:5232" ];
+        max_connections = 64;
+        timeout = 300;
       };
       storage = {
         filesystem_folder = "/mnt/ichbiah/home/radicale/collections";
@@ -51,7 +54,7 @@
   };
 
   services.nginx = {
-    upstreams.radicale.servers."127.0.0.1:5232" = {};
+    upstreams.radicale.servers."127.0.0.1:5232" = { };
 
     virtualHosts."radicale.filo.uk" = {
       basicAuthFile = config.age.secrets.radicale.path;
@@ -62,6 +65,8 @@
         extraConfig = ''
           proxy_set_header X-Script-Name /radicale;
           proxy_set_header X-Remote-User $remote_user;
+          proxy_read_timeout 300s;
+          proxy_send_timeout 300s;
         '';
         proxyPass = "http://radicale";
         recommendedProxySettings = true;

@@ -1,0 +1,397 @@
+{
+  lib,
+  pkgs,
+  secrets,
+  ...
+}:
+{
+  imports = [
+    ../modules/asr.nix
+    ../modules/cc-proxy.nix
+    ../modules/host-common.nix
+    ../modules/host-common-nixos.nix
+    ../modules/famly-fetch.nix
+    ../modules/fastflowlm.nix
+    ../modules/firefox.nix
+    ../modules/gnome.nix
+    ../modules/llm-agents.nix
+    ../modules/neovim.nix
+    ../modules/smartd.nix
+    ../modules/zed.nix
+  ];
+
+  age.identityPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
+
+  boot = {
+    blacklistedKernelModules = [ "hid_sensor_hub" ];
+    initrd = {
+      availableKernelModules = [
+        "nvme"
+        "sd_mod"
+        "thunderbolt"
+        "usb_storage"
+        "xhci_pci"
+      ];
+      systemd.enable = true;
+    };
+    kernelModules = [
+      "kvm-amd"
+    ];
+    # TODO: Restore userspace charge limiter
+    # Issue URL: https://github.com/tlvince/nixos-config/issues/309
+    # See https://patchwork.kernel.org/project/chrome-platform/patch/20250521-cros-ec-mfd-chctl-probe-v1-1-6ebfe3a6efa7@weissschuh.net/
+    # See https://github.com/torvalds/linux/commits/master/drivers/mfd/cros_ec_dev.c
+    # See https://github.com/FrameworkComputer/SoftwareFirmwareIssueTracker/issues/70
+    # labels: host:framework, unreleased
+    kernelPackages = pkgs.linuxPackages_latest;
+    # TODO: Drop MT7925 bluetooth patch
+    # See https://lore.kernel.org/all/770d36b07311bf88210c187923f243fb9f126f04.1777058551.git.pav@iki.fi/
+    # labels: host:framework
+    kernelPatches = [
+      {
+        name = "Bluetooth: btmtk: accept too short WMT FUNC_CTRL events";
+        patch = pkgs.fetchurl {
+          url = "https://github.com/archlinux/linux/commit/b776caf73d6addf2bfa467fdb3216d85573bed30.patch";
+          hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+        };
+      }
+    ];
+    kernel.sysctl = {
+      # enable REISUB: https://www.kernel.org/doc/html/latest/admin-guide/sysrq.html
+      "kernel.sysrq" = 1 + 16 + 32 + 64 + 128;
+    };
+    lanzaboote = {
+      enable = true;
+      configurationLimit = 2;
+      pkiBundle = "/var/lib/sbctl";
+    };
+    loader = {
+      efi.canTouchEfiVariables = true;
+      systemd-boot.enable = lib.mkForce false;
+    };
+  };
+
+  disko.devices = {
+    disk = {
+      vdb = {
+        type = "disk";
+        device = "/dev/nvme0n1";
+        content = {
+          type = "gpt";
+          partitions = {
+            ESP = {
+              size = "100M";
+              type = "EF00";
+              content = {
+                type = "filesystem";
+                format = "vfat";
+                mountpoint = "/boot";
+                mountOptions = [
+                  "defaults"
+                ];
+              };
+            };
+            luks = {
+              size = "100%";
+              content = {
+                type = "luks";
+                name = "crypted";
+                settings = {
+                  allowDiscards = true;
+                };
+                content = {
+                  type = "btrfs";
+                  mountpoint = "/mnt/btrfs-root";
+                  mountOptions = [
+                    "compress=zstd"
+                    "noatime"
+                  ];
+                  subvolumes = {
+                    "/root" = {
+                      mountpoint = "/";
+                      mountOptions = [
+                        "compress=zstd"
+                        "noatime"
+                      ];
+                    };
+                    "/log" = {
+                      mountpoint = "/var/log";
+                      mountOptions = [
+                        "compress=zstd"
+                        "noatime"
+                      ];
+                    };
+                    "/home" = {
+                      mountpoint = "/home";
+                      mountOptions = [
+                        "compress=zstd"
+                        "noatime"
+                      ];
+                    };
+                    "/nix" = {
+                      mountpoint = "/nix";
+                      mountOptions = [
+                        "compress=zstd"
+                        "noatime"
+                      ];
+                    };
+                  };
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+
+  environment.pathsToLink = [
+    "/share/zsh"
+  ];
+  environment.systemPackages = with pkgs; [
+    android-tools
+    aspell
+    aspellDicts.en
+    awscli2
+    brightnessctl
+    bun
+    diff-so-fancy
+    diffpdf
+    dig
+    efm-langserver
+    exiftool
+    fd
+    framework-tool
+    foot
+    fzf
+    gcc
+    gh
+    git
+    gnome-monitor-config
+    gnumake
+    gnupg
+    htop
+    hunspellDicts.en_GB-ise
+    hyphenDicts.en_GB
+    imagemagick
+    jpegoptim
+    jq
+    libreoffice
+    libva-utils
+    mpv
+    nodejs
+    optipng
+    pass-wayland
+    planify
+    powerstat
+    powertop
+    prettierd
+    pure-prompt
+    python3
+    rclone
+    ripgrep
+    sbctl
+    signal-desktop
+    tmux
+    tree
+    wl-clipboard
+    yq-go
+    yt-dlp
+    zip
+    zsh
+    zsh-z
+    (chromium.override {
+      commandLineArgs = [
+        # TODO: Remove Chromium Vulkan flags when upstreamed
+        # Issue URL: https://github.com/tlvince/nixos-config/issues/308
+        # Enables Touchpad gestures for navigation, VA-API, Vulkan (H.265/HEVC)
+        # labels: host:framework
+        "--enable-features=TouchpadOverscrollHistoryNavigation,VaapiVideoDecoder,VaapiIgnoreDriverChecks,Vulkan,DefaultANGLEVulkan,VulkanFromANGLE"
+      ];
+    })
+  ];
+
+  environment.variables = {
+    QT_QPA_PLATFORM = "wayland";
+  };
+
+  fonts = {
+    enableDefaultPackages = false;
+    packages = with pkgs; [
+      nerd-fonts.dejavu-sans-mono
+      noto-fonts-cjk-sans
+      noto-fonts-color-emoji
+    ];
+
+    fontconfig = {
+      antialias = true;
+
+      hinting = {
+        enable = false;
+        autohint = false;
+        style = "none";
+      };
+
+      subpixel = {
+        lcdfilter = "none";
+        rgba = "none";
+      };
+
+      defaultFonts = {
+        serif = [ "DejaVu Serif" ];
+        sansSerif = [ "Adwaita Sans" ];
+        monospace = [ "DejaVuSansM Nerd Font Mono" ];
+        emoji = [ "Noto Color Emoji" ];
+      };
+    };
+  };
+
+  hardware.cpu.amd.updateMicrocode = true;
+  hardware.sensor.iio.enable = false;
+
+  networking = {
+    firewall = {
+      enable = true;
+      allowedTCPPorts = [
+        # Expo
+        8081
+      ];
+      # https://wiki.nixos.org/wiki/WireGuard#Setting_up_WireGuard_with_NetworkManager
+      extraCommands = ''
+        iptables -t mangle -I nixos-fw-rpfilter -p udp -m udp --sport 51820 -j RETURN
+        iptables -t mangle -I nixos-fw-rpfilter -p udp -m udp --dport 51820 -j RETURN
+      '';
+      extraStopCommands = ''
+        iptables -t mangle -D nixos-fw-rpfilter -p udp -m udp --sport 51820 -j RETURN || true
+        iptables -t mangle -D nixos-fw-rpfilter -p udp -m udp --dport 51820 -j RETURN || true
+      '';
+    };
+    hostName = "framework";
+    nameservers = [
+      "2a07:a8c0::#${secrets.nextdns.framework}.dns.nextdns.io"
+      "2a07:a8c1::#${secrets.nextdns.framework}.dns.nextdns.io"
+      "45.90.28.0#${secrets.nextdns.framework}.dns.nextdns.io"
+      "45.90.30.0#${secrets.nextdns.framework}.dns.nextdns.io"
+    ];
+  };
+
+  nix.gc = {
+    automatic = true;
+    dates = "weekly";
+    options = "--delete-older-than 30d";
+    randomizedDelaySec = "1 hour";
+  };
+
+  nixpkgs.hostPlatform = "x86_64-linux";
+
+  programs.localsend = {
+    enable = true;
+    openFirewall = true;
+  };
+
+  services.btrfs.autoScrub = {
+    enable = true;
+    interval = "monthly";
+    fileSystems = [ "/" ];
+  };
+
+  services.btrbk.instances = {
+    btrbk = {
+      onCalendar = "hourly";
+      snapshotOnly = true;
+      settings = {
+        lockfile = "/var/lib/btrbk/btrbk.lock";
+        snapshot_create = "onchange";
+        snapshot_dir = "snapshots";
+
+        snapshot_preserve = "24h 7d 0w 0m 0y";
+        snapshot_preserve_min = "latest";
+
+        volume = {
+          "/mnt/btrfs-root" = {
+            subvolume = {
+              "/" = {
+                snapshot_name = "root";
+              };
+              "/home" = { };
+            };
+          };
+        };
+      };
+    };
+
+    remote = {
+      onCalendar = "12:00";
+      settings = {
+        lockfile = "/var/lib/btrbk/btrbk.lock";
+        snapshot_create = "onchange";
+        snapshot_dir = "snapshots";
+        ssh_identity = "/var/lib/btrbk/.ssh/id_ed25519";
+        ssh_user = "btrbk";
+
+        snapshot_preserve = "24h 7d 0w 0m 0y";
+        snapshot_preserve_min = "latest";
+        target_preserve = "0h 14d 6w 4m 1y";
+        target_preserve_min = "latest";
+
+        volume = {
+          "/mnt/btrfs-root" = {
+            target = {
+              "ssh://cm3588/mnt/ichbiah/snapshots/framework" = { };
+            };
+            subvolume = {
+              "/" = {
+                snapshot_name = "root";
+              };
+              "/home" = { };
+            };
+          };
+        };
+      };
+    };
+  };
+
+  systemd.services."btrbk-remote" = {
+    after = [ "NetworkManager-wait-online.service" ];
+    requires = [ "NetworkManager-wait-online.service" ];
+  };
+
+  services.fprintd.enable = true;
+  services.fwupd.enable = true;
+  services.hardware.bolt.enable = true;
+  services.power-profiles-daemon.enable = true;
+  services.printing.enable = false;
+
+  services.pipewire = {
+    enable = true;
+    alsa.enable = true;
+    pulse.enable = true;
+  };
+
+  services.resolved = {
+    enable = true;
+    settings.Resolve.DNSOverTLS = "true";
+  };
+
+  services.udev.extraRules = ''
+    # PCI auto suspend
+    SUBSYSTEM=="pci", ATTR{power/control}="auto"
+    # USB auto suspend
+    ACTION=="add", SUBSYSTEM=="usb", TEST=="power/control", ATTR{power/control}="auto"
+    # Power switching, power saver handled by GNOME/UPower when low capacity (20%)
+    # https://github.com/NixOS/nixpkgs/blob/2e1715cf7cf3c1e79436d566962aeedaffbfb49d/nixos/modules/services/hardware/upower.nix#L88
+    ACTION=="change", SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="0", RUN+="${pkgs.power-profiles-daemon}/bin/powerprofilesctl set balanced", RUN+="${pkgs.systemd}/bin/systemd-run --user --machine tlv@ ${pkgs.gnome-monitor-config}/bin/gnome-monitor-config set --logical-monitor --monitor eDP-1 --primary --mode '2880x1920@60.001+vrr' --scale 2", RUN+="${pkgs.runtimeShell} -c '${pkgs.coreutils}/bin/echo 0 > /sys/class/leds/chromeos:white:power/brightness'"
+    ACTION=="change", SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="1", RUN+="${pkgs.power-profiles-daemon}/bin/powerprofilesctl set balanced", RUN+="${pkgs.systemd}/bin/systemd-run --user --machine tlv@ ${pkgs.gnome-monitor-config}/bin/gnome-monitor-config set --logical-monitor --monitor eDP-1 --primary --mode '2880x1920@120.000+vrr' --scale 2", RUN+="${pkgs.runtimeShell} -c '${pkgs.coreutils}/bin/echo 0 > /sys/class/leds/chromeos:white:power/brightness'"
+  '';
+
+  system.stateVersion = "23.05";
+
+  users = {
+    users.tlv = {
+      isNormalUser = true;
+      extraGroups = [
+        "wheel"
+      ];
+    };
+  };
+}
