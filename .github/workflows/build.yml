@@ -23,11 +23,11 @@ jobs:
           - name: framework
             attr: nixosConfigurations.framework.config.system.build.toplevel
             system: x86-64-linux
-            runner: ubuntu-24.04
+            runner: blacksmith-16vcpu-ubuntu-2404
           - name: cm3588
             attr: nixosConfigurations.cm3588.config.system.build.toplevel
             system: aarch64-linux
-            runner: ubuntu-24.04-arm
+            runner: blacksmith-16vcpu-ubuntu-2204-arm
           - name: nodejs
             attr: devShells.x86_64-linux.nodejs
             system: x86-64-linux
