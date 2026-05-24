@@ -19,91 +19,89 @@ jobs:
       PR_JOB_SUMMARY: pr-job-summary
     strategy:
       matrix:
-        flake:
-          - name: framework
-            attr: nixosConfigurations.framework.config.system.build.toplevel
-            system: x86-64-linux
+        machine:
+          - host: framework
+            platform: x86-64-linux
+            runner: blacksmith-16vcpu-ubuntu-2404
+            type: nixosConfigurations
+          - host: cm3588
+            platform: aarch64-linux
+            runner: blacksmith-16vcpu-ubuntu-2204-arm
+            type: nixosConfigurations
+          - host: nodejs
+            platform: x86-64-linux
             runner: ubuntu-24.04
-          - name: cm3588
-            attr: nixosConfigurations.cm3588.config.system.build.toplevel
-            system: aarch64-linux
-            runner: ubuntu-24.04-arm
-          - name: nodejs
-            attr: devShells.x86_64-linux.nodejs
-            system: x86-64-linux
-            runner: ubuntu-24.04
-          - name: kunkun
-            attr: nixosConfigurations.kunkun.config.system.build.toplevel
-            system: aarch64-linux
-            runner: ubuntu-24.04-arm
-          - name: nea
-            attr: nixosConfigurations.nea.config.system.build.toplevel
-            system: aarch64-linux
-            runner: ubuntu-24.04-arm
-          - name: lamma
-            attr: darwinConfigurations.lamma.system
-            system: aarch64-darwin
-            runner: macos-26
-    runs-on: ${{ matrix.flake.runner }}
+            type: devShells.x86_64-linux
+    runs-on: ${{ matrix.machine.runner }}
     permissions:
       contents: read
       pull-requests: write
     steps:
-      - name: Relocate Nix store
-        # ~60GB available on /mnt vs ~20GB on / for x86-64 runners
-        if: matrix.flake.system == 'x86-64-linux'
+      - name: Free up disk space
+        # No effect on arm
+        if: matrix.machine.platform == 'x86-64-linux'
         run: |
-          sudo mkdir /nix /mnt/nix
-          sudo mount --bind /mnt/nix /nix
+          df -h
+
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/local/.ghcup
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+
+          sudo docker image prune --all --force
+
+          df -h
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Generate GitHub token
-        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3
+        uses: actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e # v2
         id: generate-github-token
         with:
-          client-id: ${{ vars.GH_APP_CLIENT_ID }}
+          app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.GH_APP_KEY }}
           owner: tlvince
           repositories: nixos-config-secrets
       - name: Install Nix
-        uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31
+        uses: DeterminateSystems/nix-installer-action@21a544727d0c62386e78b4befe52d19ad12692e3 # v17
         with:
-          github_access_token: ${{ steps.generate-github-token.outputs.token }}
+          github-token: ${{ steps.generate-github-token.outputs.token }}
       - name: Set up public cache
-        uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
+        uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
         with:
           name: tlvince-nixos-config
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Run flake check
         # All configurations are checked by default, so just run it in one
         # matrix build
-        if: matrix.flake.name == 'framework'
+        if: matrix.machine.host == 'framework'
         run: |
           CHECK_OUTPUT="${RUNNER_TEMP}/flake-check-output"
-          nix flake check --all-systems --no-build | tee "$CHECK_OUTPUT"
+          nix flake check --no-build | tee "$CHECK_OUTPUT"
           [[ -s $CHECK_OUTPUT ]] || echo "No issues found by 'nix flake check'." > "$CHECK_OUTPUT"
           echo -e "## Flake check\n\`\`\`\n$(<$CHECK_OUTPUT)\n\`\`\`" | tee -a "$GITHUB_STEP_SUMMARY" "${RUNNER_TEMP}/${PR_JOB_SUMMARY}" >/dev/null
       - name: Build
         run: |
-          OUT_PATH="$(nix build ".#${{ matrix.flake.attr }}" --print-out-paths)"
-          echo -e "\x1b[32;1mSuccessfully built .#${{ matrix.flake.attr }}\x1b[0m"
-          echo -e "## Build ${{ matrix.flake.name }}\n\`$OUT_PATH\`" | tee -a "$GITHUB_STEP_SUMMARY" "${RUNNER_TEMP}/${PR_JOB_SUMMARY}" >/dev/null
+          OUT_PATH="$(nix build .#${{ matrix.machine.type }}.${{ matrix.machine.host }}${{ matrix.machine.type == 'nixosConfigurations' && '.config.system.build.toplevel' || ''}} --print-out-paths)"
+          echo -e "\x1b[32;1mSuccessfully built .#${{ matrix.machine.type}}.${{ matrix.machine.host }}\x1b[0m"
+          echo -e "## Build ${{ matrix.machine.host }}\n\`$OUT_PATH\`" | tee -a "$GITHUB_STEP_SUMMARY" "${RUNNER_TEMP}/${PR_JOB_SUMMARY}" >/dev/null
       - name: Diff closures
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && matrix.machine.type == 'nixosConfigurations'
         run: |
+          HOST_DRV="nixosConfigurations.${{ matrix.machine.host }}.config.system.build.toplevel"
+          PREV_FLAKE="github:${GITHUB_REPOSITORY}"
+          NEXT_FLAKE="."
           DIFF_OUTPUT="${RUNNER_TEMP}/nix-store-diff-closures-output"
-          # Local source to avoid fetching via potentially expired GitHub token
-          git fetch --no-tags --depth=1 origin "${{ github.event.pull_request.base.sha }}"
-          nix store diff-closures "git+file://${GITHUB_WORKSPACE}?ref=refs/heads/${{ github.base_ref }}&rev=${{ github.event.pull_request.base.sha }}&shallow=1#${{ matrix.flake.attr }}" ".#${{ matrix.flake.attr }}" --no-write-lock-file | tee "$DIFF_OUTPUT"
-          [[ -s "$DIFF_OUTPUT" ]] && perl -i -pe 's/\x1b\[[0-9;]*m//g' "$DIFF_OUTPUT" || echo "No changes found" | tee "$DIFF_OUTPUT"
+          nix store diff-closures "${PREV_FLAKE}#${HOST_DRV}" "${NEXT_FLAKE}#${HOST_DRV}" --no-write-lock-file | tee "$DIFF_OUTPUT"
+          [[ -s "$DIFF_OUTPUT" ]] && sed -i 's/\x1b\[[0-9;]*m//g' "$DIFF_OUTPUT" || echo "No changes found" | tee "$DIFF_OUTPUT"
           echo -e "## Closures difference\n\`\`\`\n$(<$DIFF_OUTPUT)\n\`\`\`" | tee -a "$GITHUB_STEP_SUMMARY" "${RUNNER_TEMP}/${PR_JOB_SUMMARY}" >/dev/null
       - name: Add job summary to PR
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         if: github.event_name == 'pull_request'
         with:
           script: |
             const { readFile } = require('node:fs/promises')
             const comment = require('.github/scripts/comment')
-            const header = '# ${{ matrix.flake.name }}'
+            const header = '# ${{ matrix.machine.host }}'
             const body = await readFile('${{ runner.temp }}/${{ env.PR_JOB_SUMMARY }}', { encoding: 'utf8' })
             await comment({ github, context, header, body })
