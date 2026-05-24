@@ -44,6 +44,18 @@
     # See https://github.com/FrameworkComputer/SoftwareFirmwareIssueTracker/issues/70
     # labels: host:framework, unreleased
     kernelPackages = pkgs.linuxPackages_latest;
+    # TODO: Drop MT7925 bluetooth patch
+    # See https://lore.kernel.org/all/770d36b07311bf88210c187923f243fb9f126f04.1777058551.git.pav@iki.fi/
+    # labels: host:framework
+    kernelPatches = [
+      {
+        name = "Bluetooth: btmtk: accept too short WMT FUNC_CTRL events";
+        patch = pkgs.fetchurl {
+          url = "https://github.com/archlinux/linux/commit/b776caf73d6addf2bfa467fdb3216d85573bed30.patch";
+          hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+        };
+      }
+    ];
     kernel.sysctl = {
       # enable REISUB: https://www.kernel.org/doc/html/latest/admin-guide/sysrq.html
       "kernel.sysrq" = 1 + 16 + 32 + 64 + 128;
